@@ -17,7 +17,6 @@ public:
 	bool Download(const char * _url, std::string& _outputStr);
 
 private:
-	CURL* m_curl = nullptr;//handle
 	bool m_globalInit;
 
 	static size_t WriteData(void* _buffer, size_t _size, size_t _nmemb, void* _param);

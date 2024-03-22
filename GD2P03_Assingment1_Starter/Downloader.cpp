@@ -8,7 +8,6 @@ CDownloader::CDownloader()
 
 CDownloader::~CDownloader()
 {
-	curl_easy_cleanup(m_curl);
 }
 
 void CDownloader::Init()
@@ -18,12 +17,11 @@ void CDownloader::Init()
 		curl_global_init(CURL_GLOBAL_DEFAULT);
 		m_globalInit = true;
 	}
-	m_curl = curl_easy_init();
 }
 
 bool CDownloader::Download(const char* _url, std::string& _outputStr)
 {
-	m_curl = curl_easy_init();
+	CURL* m_curl = curl_easy_init();
 	if (m_curl)
 	{
 		CURLcode res;
