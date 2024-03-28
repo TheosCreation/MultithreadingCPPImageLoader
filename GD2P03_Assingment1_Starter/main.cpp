@@ -1,33 +1,33 @@
-#define NOMINMAX
 #include <iostream>
-#include <thread>
-#include <mutex>
 #include <vector>
+#include <condition_variable>
+#include <fstream>
 #include <SFML/Graphics.hpp>
 #include "Downloader.h"
+#include "CThreadPool.h"
 
-std::mutex coutMutex;
-std::mutex dataMutex;
 std::chrono::steady_clock::time_point startTime;
 
 void downloadAndLoadImage(const std::string& url, sf::Texture& texture, CDownloader& downloader) {
-    std::string data;
+    std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
+    std::ifstream file(filePath);
+    
+    if (file.good()) {
+        if (texture.loadFromFile(filePath)) {
+            std::cout << "Loaded from file: " << filePath << std::endl;
+            return;
+        }
+    }
+    // Failed to load the file will download instead
+    if (downloader.DownloadToFile(url.c_str(), filePath.c_str())) {
+        if (texture.loadFromFile(filePath)) {
+            std::cout << "Downloaded and loaded: " << url << std::endl;
+            return;
+        }
+    }
 
-    if (downloader.Download(url.c_str(), data)) {
-        sf::Image image;
-        if (image.loadFromMemory(data.c_str(), data.length())) {
-            std::lock_guard<std::mutex> lock(dataMutex);
-            texture.loadFromImage(image);
-        }
-        else {
-            std::lock_guard<std::mutex> lock(coutMutex);
-            std::cerr << "Failed to load image from memory: " << url << std::endl;
-        }
-    }
-    else {
-        std::lock_guard<std::mutex> lock(coutMutex);
-        std::cerr << "Failed to download image: " << url << std::endl;
-    }
+    // Failed to download or load the file
+    std::cerr << "Failed to download image: " << url << std::endl;
 }
 
 void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
@@ -35,7 +35,6 @@ void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     texture.create(window->getSize().x, window->getSize().y);
     texture.update(*window);
     if (texture.copyToImage().saveToFile(fileSaveLocation)) {
-        std::lock_guard<std::mutex> lock(coutMutex);
         std::cout << "Screenshot saved to " << fileSaveLocation << std::endl;
     }
 }
@@ -44,17 +43,14 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "GD2P03 Assignment 1");
 
     std::string data;
-    //creates a downloader and initilises the global curl for the downloader, every tread has its own curl
     CDownloader downloader;
     downloader.Init();
 
-    //downloads the list of images links
     if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt", data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
 
-    //turns the images into seperate strings within a vector
     std::vector<std::string> urls;
     int oldPos = 0;
     while (oldPos < data.length()) {
@@ -63,25 +59,26 @@ int main() {
         oldPos = pos + 1;
     }
 
-    std::vector<std::thread> threads;
-    std::vector<sf::Texture> textures;
-    textures.reserve(urls.size());
+    startTime = std::chrono::steady_clock::now();
 
-    startTime = std::chrono::steady_clock::now(); // Start the timer
+    std::vector<sf::Texture> textures(urls.size());
 
-    for (const auto& url : urls) {
-        textures.emplace_back();
-        threads.emplace_back(downloadAndLoadImage, std::cref(url), std::ref(textures.back()), std::ref(downloader));
+    CThreadPool pool(std::thread::hardware_concurrency());
+
+    for (size_t i = 0; i < urls.size(); ++i) {
+        pool.enqueue([i, &urls, &textures, &downloader] {
+            downloadAndLoadImage(urls[i], textures[i], downloader);
+            });
     }
 
-    for (auto& thread : threads) {
-        thread.join();
-    }
+    // Wait for all tasks to complete
+    pool.getFuture().get();
 
-    auto endTime = std::chrono::steady_clock::now(); // End the timer
+    auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
     std::cout << "Total time taken to load images: " << elapsedTime << " milliseconds" << std::endl;
+
 
     sf::RectangleShape imageArray[9];
     int count = 0;
@@ -98,7 +95,7 @@ int main() {
         sf::Event winEvent;
         while (window.pollEvent(winEvent)) {
             if (winEvent.type == sf::Event::Closed) {
-                screenshot("combinedImage.png", &window);
+                screenshot("Images/combinedImage.png", &window);
                 window.close();
             }
         }
