@@ -3,15 +3,16 @@
 #include <condition_variable>
 #include <fstream>
 #include <SFML/Graphics.hpp>
+#include "ImageGrid.h"
 #include "Downloader.h"
-#include "CThreadPool.h"
+
+#include <future>
 
 std::chrono::steady_clock::time_point startTime;
 
-void downloadAndLoadImage(const std::string& url, sf::Texture& texture, CDownloader& downloader) {
+void downloadAndLoadImage(std::string url, sf::Texture& texture, CDownloader& downloader) {
     std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
     std::ifstream file(filePath);
-    
     if (file.good()) {
         if (texture.loadFromFile(filePath)) {
             std::cout << "Loaded from file: " << filePath << std::endl;
@@ -30,6 +31,7 @@ void downloadAndLoadImage(const std::string& url, sf::Texture& texture, CDownloa
     std::cerr << "Failed to download image: " << url << std::endl;
 }
 
+
 void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     sf::Texture texture;
     texture.create(window->getSize().x, window->getSize().y);
@@ -41,6 +43,8 @@ void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "GD2P03 Assignment 1");
+
+    ImageGrid imagegrid(100);
 
     std::string data;
     CDownloader downloader;
@@ -61,35 +65,42 @@ int main() {
 
     startTime = std::chrono::steady_clock::now();
 
-    std::vector<sf::Texture> textures(urls.size());
+    std::vector<sf::Texture> textures;
+    textures.reserve(urls.size());
 
-    CThreadPool pool(std::thread::hardware_concurrency());
-
-    for (size_t i = 0; i < urls.size(); ++i) {
-        pool.enqueue([i, &urls, &textures, &downloader] {
-            downloadAndLoadImage(urls[i], textures[i], downloader);
-            });
+    std::vector<std::future<void>> futures;
+    for (const auto& url : urls) {
+        textures.emplace_back();
+        futures.push_back(std::async(std::launch::async, downloadAndLoadImage, url, std::ref(textures.back()), std::ref(downloader)));
+    }
+    for (auto& future : futures) {
+        future.wait(); // Wait for each future to finish execution
     }
 
-    // Wait for all tasks to complete
-    pool.getFuture().get();
+    for (int i = 0; i < 10; i++)
+    {
+        imagegrid.addTile(textures[i]);
+    }
+    imagegrid.RepositionTiles(3);
+   ////creation of images
+   //int gridSize = 3; //3x3
+   //int tileSize = 100;
+   //std::vector<std::vector<sf::RectangleShape>> imageGrid(gridSize, std::vector<sf::RectangleShape>(gridSize));
+   //int count = 0;
+   //for (int x = 0; x < 3; x++) {
+   //    for (int y = 0; y < 3; y++) {
+   //        imageGrid[x][y].setTexture(&textures[count]);
+   //        imageGrid[x][y].setSize(sf::Vector2f(tileSize, tileSize));
+   //        imageGrid[x][y].setPosition(x * tileSize, y * tileSize);
+   //        count++;
+   //    }
+   //}
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
     std::cout << "Total time taken to load images: " << elapsedTime << " milliseconds" << std::endl;
 
-
-    sf::RectangleShape imageArray[9];
-    int count = 0;
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            imageArray[count].setTexture(&textures[count], false);
-            imageArray[count].setSize(sf::Vector2f(200, 200));
-            imageArray[count].setPosition(200 * i, 200 * j);
-            count++;
-        }
-    }
 
     while (window.isOpen()) {
         sf::Event winEvent;
@@ -101,10 +112,13 @@ int main() {
         }
 
         window.clear();
-        for (const auto& images : imageArray)
-        {
-            window.draw(images);
-        }
+        //for (const auto& row : imageGrid) {
+        //    for (const auto& image : row) {
+        //        window.draw(image);
+        //    }
+        //}
+        imagegrid.Draw(window);
+
         window.display();
     }
 
