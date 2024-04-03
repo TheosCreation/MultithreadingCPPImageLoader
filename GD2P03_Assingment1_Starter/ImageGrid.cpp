@@ -1,4 +1,5 @@
 #include "ImageGrid.h"
+#include <iostream>
 
 ImageGrid::ImageGrid(int imageSize)
 {
@@ -12,10 +13,23 @@ ImageGrid::~ImageGrid()
 
 void ImageGrid::addTile()
 {
+    // Calculate grid indices for the new tile
+    int tileCount = (int)m_images.size();
+    int sideLength = (int)sqrt(tileCount + 1); // Calculate the side length of the grid
+
+    // Calculate row and column indices
+    int rowIndex = tileCount / sideLength;
+    int columnIndex = tileCount % sideLength;
+
+    // Calculate position based on grid indices
+    int xPosition = columnIndex * m_imageSize;
+    int yPosition = rowIndex * m_imageSize;
+
 	// Add a new row to the vector
 	sf::RectangleShape newImage;
-	newImage.setTexture(&m_imageTextures[0]);
+	newImage.setTexture(&m_imageTextures.back());
 	newImage.setSize(sf::Vector2f(m_imageSize, m_imageSize));
+    newImage.setPosition(sf::Vector2f(xPosition, yPosition));
 	m_images.push_back(newImage);
 }
 
@@ -26,25 +40,7 @@ bool ImageGrid::addTexture(std::string filePath)
     {
         return true;
     }
-    m_imageTextures.pop_back();
     return false;
-}
-
-void ImageGrid::RepositionTiles(int gridSize)
-{
-    for (int i = 0; i < m_images.size(); i++)
-    {
-        // Calculate the row and column index for the current image
-        int row = i / gridSize;
-        int col = i % gridSize;
-
-        // Calculate the position for the current image based on its row and column index
-        float posX = col * m_imageSize;
-        float posY = row * m_imageSize;
-
-        // Set the position of the current image
-        m_images[i].setPosition(posX, posY);
-    }
 }
 
 void ImageGrid::Draw(sf::RenderWindow& window)

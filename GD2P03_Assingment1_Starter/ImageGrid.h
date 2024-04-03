@@ -9,7 +9,6 @@ public:
 	~ImageGrid();
 	void addTile();
 	bool addTexture(std::string filePath);
-	void RepositionTiles(int gridSize);
 	void Draw(sf::RenderWindow& window);
 private:
 	std::vector<sf::RectangleShape> m_images;

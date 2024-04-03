@@ -20,11 +20,12 @@ void downloadImageToFile(std::string url, CDownloader& downloader) {
     std::cerr << "Failed to download image: " << url << std::endl;
 }
 
-void LoadImageOnGrid(std::string url, ImageGrid& imageGrid, CDownloader& downloader) {
+void LoadImageOnGrid(std::string url, ImageGrid& imageGrid) {
     std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
     std::ifstream file(filePath);
     if (file.good()) {
         if (imageGrid.addTexture(filePath)) {
+            imageGrid.addTile();
             std::cout << "Loaded from file: " << filePath << std::endl;
             return;
         }
@@ -73,40 +74,23 @@ int main() {
         futures.push_back(std::async(std::launch::async, downloadImageToFile, url, std::ref(downloader)));
     }
     for (auto& future : futures) {
-        future.wait(); // Wait for each future to finish execution
+        future.wait();
     }
-
-    //for (const auto& url : urls) {
-    //    futures.push_back(std::async(std::launch::async, LoadImageOnGrid, url, std::ref(imagegrid), std::ref(downloader)));
-    //}
-    //for (auto& future : futures) {
-    //    future.wait(); // Wait for each future to finish execution
-    //}
-    //
-    //for (int i = 0; i < 10; i++)
-    //{
-    //    imagegrid.addTile();
-    //}
-    //imagegrid.RepositionTiles(3);
-   ////creation of images
-   //int gridSize = 3; //3x3
-   //int tileSize = 100;
-   //std::vector<std::vector<sf::RectangleShape>> imageGrid(gridSize, std::vector<sf::RectangleShape>(gridSize));
-   //int count = 0;
-   //for (int x = 0; x < 3; x++) {
-   //    for (int y = 0; y < 3; y++) {
-   //        imageGrid[x][y].setTexture(&textures[count]);
-   //        imageGrid[x][y].setSize(sf::Vector2f(tileSize, tileSize));
-   //        imageGrid[x][y].setPosition(x * tileSize, y * tileSize);
-   //        count++;
-   //    }
-   //}
-
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    std::cout << "Total time taken to load images: " << elapsedTime << " milliseconds" << std::endl;
+    std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
 
+    startTime = std::chrono::steady_clock::now();
+    for (const auto& url : urls) {
+        LoadImageOnGrid(url, std::ref(imagegrid));
+        //futures.push_back(std::async(std::launch::deferred, LoadImageOnGrid, url, std::ref(imagegrid), std::ref(downloader)));
+    }
+
+    endTime = std::chrono::steady_clock::now();
+    elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+    std::cout << "Total time taken to load images: " << elapsedTime << " milliseconds" << std::endl;
 
     while (window.isOpen()) {
         sf::Event winEvent;
@@ -118,12 +102,8 @@ int main() {
         }
 
         window.clear();
-        //for (const auto& row : imageGrid) {
-        //    for (const auto& image : row) {
-        //        window.draw(image);
-        //    }
-        //}
-        //imagegrid.Draw(window);
+
+        imagegrid.Draw(window);
 
         window.display();
     }
