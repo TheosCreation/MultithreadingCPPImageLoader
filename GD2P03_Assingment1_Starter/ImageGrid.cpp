@@ -10,13 +10,24 @@ ImageGrid::~ImageGrid()
 }
 
 
-void ImageGrid::addTile(const sf::Texture& imageTexture)
+void ImageGrid::addTile()
 {
 	// Add a new row to the vector
 	sf::RectangleShape newImage;
-	newImage.setTexture(&imageTexture);
+	newImage.setTexture(&m_imageTextures[0]);
 	newImage.setSize(sf::Vector2f(m_imageSize, m_imageSize));
 	m_images.push_back(newImage);
+}
+
+bool ImageGrid::addTexture(std::string filePath)
+{
+    m_imageTextures.emplace_back();
+    if (m_imageTextures.back().loadFromFile(filePath))
+    {
+        return true;
+    }
+    m_imageTextures.pop_back();
+    return false;
 }
 
 void ImageGrid::RepositionTiles(int gridSize)

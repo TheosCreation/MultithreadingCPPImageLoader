@@ -10,25 +10,28 @@
 
 std::chrono::steady_clock::time_point startTime;
 
-void downloadAndLoadImage(std::string url, sf::Texture& texture, CDownloader& downloader) {
+void downloadImageToFile(std::string url, CDownloader& downloader) {
+    std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
+
+    // Download Image to a file
+    if (downloader.DownloadToFile(url.c_str(), filePath.c_str())) return;
+
+    // Failed to download or load the file
+    std::cerr << "Failed to download image: " << url << std::endl;
+}
+
+void LoadImageOnGrid(std::string url, ImageGrid& imageGrid, CDownloader& downloader) {
     std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
     std::ifstream file(filePath);
     if (file.good()) {
-        if (texture.loadFromFile(filePath)) {
+        if (imageGrid.addTexture(filePath)) {
             std::cout << "Loaded from file: " << filePath << std::endl;
-            return;
-        }
-    }
-    // Failed to load the file will download instead
-    if (downloader.DownloadToFile(url.c_str(), filePath.c_str())) {
-        if (texture.loadFromFile(filePath)) {
-            std::cout << "Downloaded and loaded: " << url << std::endl;
             return;
         }
     }
 
     // Failed to download or load the file
-    std::cerr << "Failed to download image: " << url << std::endl;
+    std::cerr << "Failed to load Image: " << url << std::endl;
 }
 
 
@@ -65,23 +68,26 @@ int main() {
 
     startTime = std::chrono::steady_clock::now();
 
-    std::vector<sf::Texture> textures;
-    textures.reserve(urls.size());
-
     std::vector<std::future<void>> futures;
     for (const auto& url : urls) {
-        textures.emplace_back();
-        futures.push_back(std::async(std::launch::async, downloadAndLoadImage, url, std::ref(textures.back()), std::ref(downloader)));
+        futures.push_back(std::async(std::launch::async, downloadImageToFile, url, std::ref(downloader)));
     }
     for (auto& future : futures) {
         future.wait(); // Wait for each future to finish execution
     }
 
-    for (int i = 0; i < 10; i++)
-    {
-        imagegrid.addTile(textures[i]);
-    }
-    imagegrid.RepositionTiles(3);
+    //for (const auto& url : urls) {
+    //    futures.push_back(std::async(std::launch::async, LoadImageOnGrid, url, std::ref(imagegrid), std::ref(downloader)));
+    //}
+    //for (auto& future : futures) {
+    //    future.wait(); // Wait for each future to finish execution
+    //}
+    //
+    //for (int i = 0; i < 10; i++)
+    //{
+    //    imagegrid.addTile();
+    //}
+    //imagegrid.RepositionTiles(3);
    ////creation of images
    //int gridSize = 3; //3x3
    //int tileSize = 100;
@@ -117,7 +123,7 @@ int main() {
         //        window.draw(image);
         //    }
         //}
-        imagegrid.Draw(window);
+        //imagegrid.Draw(window);
 
         window.display();
     }
