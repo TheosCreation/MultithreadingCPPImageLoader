@@ -158,6 +158,7 @@
     <ClCompile Include="CThreadPool.cpp" />
     <ClCompile Include="Downloader.cpp" />
     <ClCompile Include="ImageGrid.cpp" />
+    <ClCompile Include="ImageTile.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
@@ -165,6 +166,7 @@
     <ClInclude Include="CThreadPool.h" />
     <ClInclude Include="Downloader.h" />
     <ClInclude Include="ImageGrid.h" />
+    <ClInclude Include="ImageTile.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

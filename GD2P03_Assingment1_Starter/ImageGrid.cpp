@@ -1,57 +1,38 @@
 #include "ImageGrid.h"
 #include <iostream>
 
-ImageGrid::ImageGrid(int imageSize)
+ImageGrid::ImageGrid(int imageSize, int gridSize)
 {
+    m_emptyTexure.loadFromFile("emptyTile.png");
     m_imageSize = imageSize;
+    m_gridSize = gridSize;
+	m_tiles.resize(m_gridSize);
+    for (int i = 0; i < m_gridSize; i++) {
+
+        for (int j = 0; j < m_gridSize; j++) {
+
+        }
+    }
+    for (auto& tile : m_tiles) {
+        tile.m_image.setTexture(&m_emptyTexure);
+        tile.m_image.setPosition(m_imageSize * 1, m_imageSize * 1);
+        tile.m_image.setSize(sf::Vector2f(m_imageSize, m_imageSize));
+    }
 }
 
 ImageGrid::~ImageGrid()
 {
 }
 
-
-bool ImageGrid::addTile(std::string filePath)
+void ImageGrid::setTileTexture(sf::Texture* _texture)
 {
-    if (addTexture(filePath))
-    {
-        sf::RectangleShape newImage;
-        newImage.setTexture(&m_imageTextures.back()); 
-        newImage.setSize(sf::Vector2f(m_imageSize, m_imageSize));
-
-        // Calculate grid position based on index
-        int row = m_index / m_gridColumns;
-        int col = m_index % m_gridColumns;
-
-        // Set position based on grid
-        float xPos = col * m_imageSize;
-        float yPos = row * m_imageSize;
-        newImage.setPosition(sf::Vector2f(xPos, yPos));
-
-        // Add new tile to the grid
-        m_images.push_back(newImage);
-        m_index++;
-        return true;
-    }
-    return false;
-}
-
-bool ImageGrid::addTexture(std::string filePath)
-{
-    // Add a new texture to the end of the vector and try to load it
-    sf::Texture newTexture;
-    if (newTexture.loadFromFile(filePath))
-    {
-        m_imageTextures.push_back(newTexture);
-        return true;
-    }
-    // If loading the texture fails, return false
-    return false;
+    m_tiles[m_currentIndex].setTexture(_texture);
+    m_currentIndex++;
 }
 
 void ImageGrid::Draw(sf::RenderWindow& window)
 {
-    for (auto& image : m_images) {
-        window.draw(image);
+    for (auto& tile : m_tiles) {
+        window.draw(tile.m_image);
     }
 }

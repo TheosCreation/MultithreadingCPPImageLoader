@@ -1,20 +1,22 @@
 #pragma once
 #include <vector>
 #include <SFML/Graphics.hpp>
+#include "ImageTile.h"
 
 class ImageGrid
 {
 public:
-	ImageGrid(int imageSize);
+	ImageGrid(int imageSize, int gridSize);
 	~ImageGrid();
-	bool addTile(std::string filePath);
-	bool addTexture(std::string filePath);
+	void setTileTexture(sf::Texture* _texture);
 	void Draw(sf::RenderWindow& window);
 private:
-	std::vector<sf::RectangleShape> m_images;
-	std::vector<sf::Texture> m_imageTextures;
+	std::vector<ImageTile> m_tiles;
+	int m_currentIndex = 0;
 	int m_imageSize = 300;
-	int m_index = 0;
-	int m_gridColumns = 3;
+	int m_gridSize = 3;
+
+
+	sf::Texture m_emptyTexure;
 };
 
