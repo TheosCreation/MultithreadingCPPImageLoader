@@ -20,11 +20,11 @@ void downloadImageToFile(std::string url, CDownloader& downloader) {
     std::cerr << "Failed to download image: " << url << std::endl;
 }
 
-void LoadImageOnGrid(std::string url, ImageGrid& imageGrid) {
+void LoadImageOnGrid(std::string url, ImageGrid* imageGrid) {
     std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
     std::ifstream file(filePath);
     if (file.good()) {
-        if (imageGrid.addTexture(filePath)) {
+        if (imageGrid->addTile(filePath)) {
             std::cout << "Loaded from file: " << filePath << std::endl;
             return;
         }
@@ -47,7 +47,7 @@ void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "GD2P03 Assignment 1");
 
-    ImageGrid imagegrid(100);
+    ImageGrid imagegrid(150);
 
     std::string data;
     CDownloader downloader;
@@ -80,15 +80,12 @@ int main() {
 
     std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
 
-    //startTime = std::chrono::steady_clock::now();
+    startTime = std::chrono::steady_clock::now();
 
     for (const auto& url : urls) {
-        //LoadImageOnGrid(url, std::ref(imagegrid));
-        futures.push_back(std::async(std::launch::deferred, LoadImageOnGrid, url, std::ref(imagegrid)));
+        LoadImageOnGrid(url, &imagegrid);
     }
-    for (auto& future : futures) {
-        future.wait();
-    }
+
     endTime = std::chrono::steady_clock::now();
     elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 

@@ -11,36 +11,41 @@ ImageGrid::~ImageGrid()
 }
 
 
-void ImageGrid::addTile()
+bool ImageGrid::addTile(std::string filePath)
 {
-    // Calculate grid indices for the new tile
-    int tileCount = (int)m_images.size();
-    int sideLength = (int)sqrt(tileCount + 1); // Calculate the side length of the grid
+    if (addTexture(filePath))
+    {
+        sf::RectangleShape newImage;
+        newImage.setTexture(&m_imageTextures.back()); 
+        newImage.setSize(sf::Vector2f(m_imageSize, m_imageSize));
 
-    // Calculate row and column indices
-    int rowIndex = tileCount / sideLength;
-    int columnIndex = tileCount % sideLength;
+        // Calculate grid position based on index
+        int row = m_index / m_gridColumns;
+        int col = m_index % m_gridColumns;
 
-    // Calculate position based on grid indices
-    int xPosition = columnIndex * m_imageSize;
-    int yPosition = rowIndex * m_imageSize;
+        // Set position based on grid
+        float xPos = col * m_imageSize;
+        float yPos = row * m_imageSize;
+        newImage.setPosition(sf::Vector2f(xPos, yPos));
 
-	// Add a new row to the vector
-	sf::RectangleShape newImage;
-	newImage.setTexture(&m_imageTextures.back());
-	newImage.setSize(sf::Vector2f(m_imageSize, m_imageSize));
-    newImage.setPosition(sf::Vector2f(xPosition, yPosition));
-	m_images.push_back(newImage);
+        // Add new tile to the grid
+        m_images.push_back(newImage);
+        m_index++;
+        return true;
+    }
+    return false;
 }
 
 bool ImageGrid::addTexture(std::string filePath)
 {
-    m_imageTextures.emplace_back();
-    if (m_imageTextures.back().loadFromFile(filePath))
+    // Add a new texture to the end of the vector and try to load it
+    sf::Texture newTexture;
+    if (newTexture.loadFromFile(filePath))
     {
-        addTile();
+        m_imageTextures.push_back(newTexture);
         return true;
     }
+    // If loading the texture fails, return false
     return false;
 }
 
