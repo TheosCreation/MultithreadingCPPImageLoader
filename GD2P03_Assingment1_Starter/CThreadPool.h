@@ -11,7 +11,7 @@
 
 class CThreadPool {
 public:
-    explicit CThreadPool(size_t threads) : stop(false), tasksCompleted(0) {
+    explicit CThreadPool(size_t threads) : stop(false), tasksCompleted(0), totalTasks(0) {
         for (size_t i = 0; i < threads; ++i) {
             workers.emplace_back([this] {
                 for (;;) {

@@ -7,6 +7,7 @@
 #include "Downloader.h"
 
 #include <future>
+#include "CThreadPool.h"
 
 std::chrono::steady_clock::time_point startTime;
 
@@ -52,34 +53,26 @@ int main() {
     int windowSize = 1260;
     sf::RenderWindow window(sf::VideoMode(windowSize, windowSize), "GD2P03 Assignment 1");
 
-
     std::string data;
     CDownloader downloader;
     downloader.Init();
 
-    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt", data)) {
+    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt", data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
 
+    // urls from the data downloaded and split
     std::vector<std::string> urls = splitUrls(data);
-
-    startTime = std::chrono::steady_clock::now();
-
-    std::vector<std::future<void>> downloadfutures;
-    for (size_t i = 0; i < urls.size(); ++i) {
-        downloadfutures.push_back(std::async(std::launch::async, downloadImageToFile, urls[i], std::ref(downloader)));
+    // filepaths from the urls and split
+    std::vector<std::string> filePaths;
+    for (const auto& url : urls) {
+        std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
+        filePaths.push_back(filePath);
     }
-    for (auto& future : downloadfutures) {
-        future.wait();
-    }
-    auto endTime = std::chrono::steady_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-    
-    std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
-    
-    int imageCount = urls.size();
-    int gridSize = std::sqrt(imageCount); 
+    // number of images to download and load onto the grid
+    int imageCount = urls.size(); 
+    int gridSize = std::sqrt(imageCount);
     if (gridSize * gridSize < imageCount) {
         gridSize++; // Increment gridSize if it's not a perfect square
     }
@@ -90,15 +83,25 @@ int main() {
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
-    //splits all the filepaths
-    std::vector<std::string> filePaths;
-    for (const auto& url : urls) {
-        std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
-        filePaths.push_back(filePath);
+    startTime = std::chrono::steady_clock::now();
+
+    std::vector<std::future<void>> downloadfutures;
+    for (size_t i = 0; i < urls.size(); ++i) {
+        downloadfutures.push_back(std::async(std::launch::async, downloadImageToFile, urls[i], std::ref(downloader)));
     }
-    std::vector<std::future<void>> loadfutures;
+    for (auto& future : downloadfutures) {
+        future.wait();
+    }
+
+    auto endTime = std::chrono::steady_clock::now();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    
+    std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
+    
+
+    CThreadPool loaderThreadPool(std::thread::hardware_concurrency());
     for (int i = 0; i < imageCount; i++) {
-        loadfutures.push_back(std::async(std::launch::async, [&, i]() {
+        loaderThreadPool.enqueue([&, i]() {
             if (!imageTextures[i].loadFromFile(filePaths[i])) {
                 std::cout << "Failed to load image: " << filePaths[i] << std::endl;
             }
@@ -106,7 +109,7 @@ int main() {
                 std::cout << "Image Loaded From: " << filePaths[i] << std::endl;
                 imagegrid.setTileTexture(&imageTextures[i]);
             }
-            }));
+            });
     }
 
     while (window.isOpen()) {
