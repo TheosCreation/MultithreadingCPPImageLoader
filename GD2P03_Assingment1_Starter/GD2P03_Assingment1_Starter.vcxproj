@@ -155,7 +155,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CThreadPool.cpp" />
     <ClCompile Include="Downloader.cpp" />
     <ClCompile Include="ImageGrid.cpp" />
     <ClCompile Include="ImageTile.cpp" />

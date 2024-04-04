@@ -3,15 +3,14 @@
 
 ImageGrid::ImageGrid(int imageSize, int gridSize)
 {
-    m_emptyTexure.loadFromFile("emptyTile.png");
+    m_emptyTexure.loadFromFile("FillTile.png");
     m_imageSize = imageSize;
     m_gridSize = gridSize;
 
     for (int i = 0; i < m_gridSize; i++) {
         for (int j = 0; j < m_gridSize; j++) {
             m_tiles.emplace_back();
-            int index = i * m_gridSize + j; // Calculate the 1D index from 2D indices
-            std::cout << "index: " << index << " x: " << j << " y: " << i << std::endl;
+            int index = i * m_gridSize + j;
             // Set properties for tile
             m_tiles[index].m_image.setTexture(&m_emptyTexure);
             m_tiles[index].m_image.setPosition(sf::Vector2f(j * m_imageSize, i * m_imageSize)); // Set position
@@ -30,9 +29,23 @@ void ImageGrid::setTileTexture(sf::Texture* _texture)
     m_currentIndex++;
 }
 
-void ImageGrid::Draw(sf::RenderWindow& window)
+void ImageGrid::scaleImages(int newScale)
 {
-    for (auto& tile : m_tiles) {
-        window.draw(tile.m_image);
+    for (int i = 0; i < m_gridSize; i++) {
+        for (int j = 0; j < m_gridSize; j++) {
+            int index = i * m_gridSize + j;
+            m_tiles[index].m_image.setPosition(sf::Vector2f(j * newScale, i * newScale)); // Set position
+            m_tiles[index].m_image.setSize(sf::Vector2f(newScale, newScale));
+        }
+    }
+}
+
+void ImageGrid::draw(sf::RenderWindow& window, int zoomAmount)
+{
+    for (int i = 0; i < zoomAmount; i++) {
+        for (int j = 0; j < zoomAmount; j++) {
+            int index = i * m_gridSize + j;
+            window.draw(m_tiles[index].m_image);
+        }
     }
 }

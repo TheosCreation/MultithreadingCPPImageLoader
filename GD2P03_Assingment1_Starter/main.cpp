@@ -43,7 +43,7 @@ int main() {
     CDownloader downloader;
     downloader.Init();
 
-    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt", data)) {
+    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt", data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
@@ -63,34 +63,30 @@ int main() {
         gridSize++; // Increment gridSize if it's not a perfect square
     }
 
-    int imageSize = windowSize / gridSize;
+    int originalImageSize = windowSize / gridSize;
 
-    ImageGrid imagegrid(imageSize, gridSize);
+    ImageGrid imagegrid(originalImageSize, gridSize);
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
 
-    CThreadPool downloadThreadPool(std::thread::hardware_concurrency());
+    CThreadPool threadPool(std::thread::hardware_concurrency());
     std::vector<std::promise<void>> downloadPromises(imageCount);
     for (int i = 0; i < imageCount; i++) {
-        downloadPromises[i] = std::promise<void>();
-        downloadThreadPool.enqueue([&, i]() {
-            std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
-            if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
-                std::cout << "image download success: " << urls[i] << std::endl;
-                downloadPromises[i].set_value();
-            }
-            else {
-                std::cerr << "Failed to download image: " << urls[i] << std::endl;
-                downloadPromises[i].set_value();
-            }
-            });
-    }
-
-    CThreadPool loaderThreadPool(std::thread::hardware_concurrency());
-    for (int i = 0; i < imageCount; i++) {
-        loaderThreadPool.enqueue([&, i]() {
-            downloadPromises[i].get_future().wait();
+        //downloadPromises[i] = std::promise<void>();
+        //threadPool.enqueue([&, i]() {
+        //    std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
+        //    if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
+        //        std::cout << "image download success: " << urls[i] << std::endl;
+        //        downloadPromises[i].set_value();
+        //    }
+        //    else {
+        //        std::cerr << "Failed to download image: " << urls[i] << std::endl;
+        //        downloadPromises[i].set_value();
+        //    }
+        //    });
+        threadPool.enqueue([&, i]() {
+            //downloadPromises[i].get_future().wait();
             if (!imageTextures[i].loadFromFile(filePaths[i])) {
                 std::cout << "Failed to load image: " << filePaths[i] << std::endl;
             }
@@ -106,18 +102,71 @@ int main() {
 
     std::cout << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
 
+
+    bool controlPressed = false;
+    bool scrolledUp = false;
+    bool scrolledDown = false;
+    int originalZoomFactor = 1;
+    int zoomFactor = originalZoomFactor;
+
+    int imageSize = originalImageSize;
+    imageSize = windowSize;
+    imagegrid.scaleImages(imageSize);
+
     while (window.isOpen()) {
         sf::Event winEvent;
         while (window.pollEvent(winEvent)) {
-            if (winEvent.type == sf::Event::Closed) {
-                screenshot("Images/combinedImage.png", &window);
+            switch (winEvent.type)
+            {
+            case sf::Event::Closed:
                 window.close();
+                break;
+            case sf::Event::KeyPressed:
+                if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
+                    controlPressed = true;
+                break;
+            case sf::Event::KeyReleased:
+                if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
+                    controlPressed = false;
+                break;
+            case sf::Event::MouseWheelScrolled:
+                if (controlPressed && winEvent.mouseWheelScroll.delta > 0)
+                    scrolledUp = true;
+                if (controlPressed && winEvent.mouseWheelScroll.delta < 0)
+                    scrolledDown = true;
+                break;
             }
         }
+        //input
+        if (controlPressed && scrolledUp)
+        {
+            //zoom in
+            zoomFactor--;
+            if (zoomFactor < originalZoomFactor)
+            {
+                zoomFactor = originalZoomFactor;
+            }
+            imageSize = originalImageSize * (gridSize / zoomFactor);
+            imagegrid.scaleImages(imageSize);
+        }
+        if (controlPressed && scrolledDown)
+        {
+            //zoom out
+            zoomFactor++;
+            if (zoomFactor > gridSize)
+            {
+                zoomFactor = gridSize;
+            }
+            imageSize = originalImageSize * (gridSize / zoomFactor);
+            imagegrid.scaleImages(imageSize);
+        }
+
+        scrolledUp = false;
+        scrolledDown = false;
 
         window.clear();
 
-        imagegrid.Draw(window);
+        imagegrid.draw(window, zoomFactor);
 
         window.display();
     }
