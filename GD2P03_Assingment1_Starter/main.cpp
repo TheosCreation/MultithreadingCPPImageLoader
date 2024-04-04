@@ -11,23 +11,6 @@
 
 std::chrono::steady_clock::time_point startTime;
 
-void downloadImageToFile(std::string url, CDownloader& downloader) {
-    std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
-    std::ifstream file(filePath);
-    if (file.good()) {
-        return;
-    }
-    // Download Image to a file
-    if (downloader.DownloadToFile(url.c_str(), filePath.c_str()))
-    {
-        std::cout << "image download success: " << url << std::endl;
-        return;
-    }
-
-    // Failed to download or load the file
-    std::cerr << "Failed to download image: " << url << std::endl;
-}
-
 // Function to split URLs from a string
 std::vector<std::string> splitUrls(const std::string& _data) {
     std::vector<std::string> urls;
@@ -40,6 +23,7 @@ std::vector<std::string> splitUrls(const std::string& _data) {
     return urls;
 }
 
+// Function to take a screenshot of the current screen and save the to a file location
 void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     sf::Texture texture;
     texture.create(window->getSize().x, window->getSize().y);
@@ -50,6 +34,8 @@ void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
 }
 
 int main() {
+    startTime = std::chrono::steady_clock::now();
+
     int windowSize = 1260;
     sf::RenderWindow window(sf::VideoMode(windowSize, windowSize), "GD2P03 Assignment 1");
 
@@ -57,7 +43,7 @@ int main() {
     CDownloader downloader;
     downloader.Init();
 
-    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt", data)) {
+    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt", data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
@@ -71,7 +57,7 @@ int main() {
         filePaths.push_back(filePath);
     }
     // number of images to download and load onto the grid
-    int imageCount = urls.size(); 
+    int imageCount = urls.size();
     int gridSize = std::sqrt(imageCount);
     if (gridSize * gridSize < imageCount) {
         gridSize++; // Increment gridSize if it's not a perfect square
@@ -83,25 +69,28 @@ int main() {
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
-    startTime = std::chrono::steady_clock::now();
 
-    std::vector<std::future<void>> downloadfutures;
-    for (size_t i = 0; i < urls.size(); ++i) {
-        downloadfutures.push_back(std::async(std::launch::async, downloadImageToFile, urls[i], std::ref(downloader)));
+    CThreadPool downloadThreadPool(std::thread::hardware_concurrency());
+    std::vector<std::promise<void>> downloadPromises(imageCount);
+    for (int i = 0; i < imageCount; i++) {
+        downloadPromises[i] = std::promise<void>();
+        downloadThreadPool.enqueue([&, i]() {
+            std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
+            if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
+                std::cout << "image download success: " << urls[i] << std::endl;
+                downloadPromises[i].set_value();
+            }
+            else {
+                std::cerr << "Failed to download image: " << urls[i] << std::endl;
+                downloadPromises[i].set_value();
+            }
+            });
     }
-    for (auto& future : downloadfutures) {
-        future.wait();
-    }
-
-    auto endTime = std::chrono::steady_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-    
-    std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
-    
 
     CThreadPool loaderThreadPool(std::thread::hardware_concurrency());
     for (int i = 0; i < imageCount; i++) {
         loaderThreadPool.enqueue([&, i]() {
+            downloadPromises[i].get_future().wait();
             if (!imageTextures[i].loadFromFile(filePaths[i])) {
                 std::cout << "Failed to load image: " << filePaths[i] << std::endl;
             }
@@ -111,6 +100,11 @@ int main() {
             }
             });
     }
+
+    auto endTime = std::chrono::steady_clock::now();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+    std::cout << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
 
     while (window.isOpen()) {
         sf::Event winEvent;
