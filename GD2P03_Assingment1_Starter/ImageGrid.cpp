@@ -6,17 +6,17 @@ ImageGrid::ImageGrid(int imageSize, int gridSize)
     m_emptyTexure.loadFromFile("emptyTile.png");
     m_imageSize = imageSize;
     m_gridSize = gridSize;
-	m_tiles.resize(m_gridSize);
+
     for (int i = 0; i < m_gridSize; i++) {
-
         for (int j = 0; j < m_gridSize; j++) {
-
+            m_tiles.emplace_back();
+            int index = i * m_gridSize + j; // Calculate the 1D index from 2D indices
+            std::cout << "index: " << index << " x: " << j << " y: " << i << std::endl;
+            // Set properties for tile
+            m_tiles[index].m_image.setTexture(&m_emptyTexure);
+            m_tiles[index].m_image.setPosition(sf::Vector2f(j * m_imageSize, i * m_imageSize)); // Set position
+            m_tiles[index].m_image.setSize(sf::Vector2f(m_imageSize, m_imageSize));
         }
-    }
-    for (auto& tile : m_tiles) {
-        tile.m_image.setTexture(&m_emptyTexure);
-        tile.m_image.setPosition(m_imageSize * 1, m_imageSize * 1);
-        tile.m_image.setSize(sf::Vector2f(m_imageSize, m_imageSize));
     }
 }
 
