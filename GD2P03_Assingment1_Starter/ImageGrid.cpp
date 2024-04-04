@@ -38,6 +38,7 @@ bool ImageGrid::addTexture(std::string filePath)
     m_imageTextures.emplace_back();
     if (m_imageTextures.back().loadFromFile(filePath))
     {
+        addTile();
         return true;
     }
     return false;

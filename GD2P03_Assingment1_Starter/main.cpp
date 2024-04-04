@@ -25,7 +25,6 @@ void LoadImageOnGrid(std::string url, ImageGrid& imageGrid) {
     std::ifstream file(filePath);
     if (file.good()) {
         if (imageGrid.addTexture(filePath)) {
-            imageGrid.addTile();
             std::cout << "Loaded from file: " << filePath << std::endl;
             return;
         }
@@ -81,16 +80,19 @@ int main() {
 
     std::cout << "Total time taken to download images: " << elapsedTime << " milliseconds" << std::endl;
 
-    startTime = std::chrono::steady_clock::now();
-    for (const auto& url : urls) {
-        LoadImageOnGrid(url, std::ref(imagegrid));
-        //futures.push_back(std::async(std::launch::deferred, LoadImageOnGrid, url, std::ref(imagegrid), std::ref(downloader)));
-    }
+    //startTime = std::chrono::steady_clock::now();
 
+    for (const auto& url : urls) {
+        //LoadImageOnGrid(url, std::ref(imagegrid));
+        futures.push_back(std::async(std::launch::deferred, LoadImageOnGrid, url, std::ref(imagegrid)));
+    }
+    for (auto& future : futures) {
+        future.wait();
+    }
     endTime = std::chrono::steady_clock::now();
     elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    std::cout << "Total time taken to load images: " << elapsedTime << " milliseconds" << std::endl;
+    std::cout << "Total time taken to download and load images: " << elapsedTime << " milliseconds" << std::endl;
 
     while (window.isOpen()) {
         sf::Event winEvent;
