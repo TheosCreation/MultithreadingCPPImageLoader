@@ -29,7 +29,7 @@ void ImageGrid::setTileTexture(sf::Texture* _texture)
     m_currentIndex++;
 }
 
-void ImageGrid::scaleImages(int newScale)
+void ImageGrid::scaleImages(float newScale)
 {
     for (int i = 0; i < m_gridSize; i++) {
         for (int j = 0; j < m_gridSize; j++) {
@@ -47,5 +47,11 @@ void ImageGrid::draw(sf::RenderWindow& window, int zoomAmount)
             int index = i * m_gridSize + j;
             window.draw(m_tiles[index].m_image);
         }
+    }
+}
+void ImageGrid::draw(sf::RenderWindow& window)
+{
+    for (const auto& tile : m_tiles) {
+        window.draw(tile.m_image);
     }
 }

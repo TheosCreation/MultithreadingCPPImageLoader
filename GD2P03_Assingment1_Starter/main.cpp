@@ -73,20 +73,20 @@ int main() {
     CThreadPool threadPool(std::thread::hardware_concurrency());
     std::vector<std::promise<void>> downloadPromises(imageCount);
     for (int i = 0; i < imageCount; i++) {
-        //downloadPromises[i] = std::promise<void>();
-        //threadPool.enqueue([&, i]() {
-        //    std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
-        //    if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
-        //        std::cout << "image download success: " << urls[i] << std::endl;
-        //        downloadPromises[i].set_value();
-        //    }
-        //    else {
-        //        std::cerr << "Failed to download image: " << urls[i] << std::endl;
-        //        downloadPromises[i].set_value();
-        //    }
-        //    });
+        downloadPromises[i] = std::promise<void>();
         threadPool.enqueue([&, i]() {
-            //downloadPromises[i].get_future().wait();
+            std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
+            if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
+                std::cout << "image download success: " << urls[i] << std::endl;
+                downloadPromises[i].set_value();
+            }
+            else {
+                std::cerr << "Failed to download image: " << urls[i] << std::endl;
+                downloadPromises[i].set_value();
+            }
+            });
+        threadPool.enqueue([&, i]() {
+            downloadPromises[i].get_future().wait();
             if (!imageTextures[i].loadFromFile(filePaths[i])) {
                 std::cout << "Failed to load image: " << filePaths[i] << std::endl;
             }
@@ -109,7 +109,7 @@ int main() {
     int originalZoomFactor = 1;
     int zoomFactor = originalZoomFactor;
 
-    int imageSize = originalImageSize;
+    float imageSize = originalImageSize;
     imageSize = windowSize;
     imagegrid.scaleImages(imageSize);
 
@@ -146,19 +146,25 @@ int main() {
             {
                 zoomFactor = originalZoomFactor;
             }
-            imageSize = originalImageSize * (gridSize / zoomFactor);
-            imagegrid.scaleImages(imageSize);
+            else
+            {
+                imageSize = windowSize / zoomFactor;
+                imagegrid.scaleImages(imageSize);
+            }
         }
         if (controlPressed && scrolledDown)
         {
             //zoom out
             zoomFactor++;
-            if (zoomFactor > gridSize)
+            if (zoomFactor > 5)
             {
-                zoomFactor = gridSize;
+                zoomFactor = 5;
             }
-            imageSize = originalImageSize * (gridSize / zoomFactor);
-            imagegrid.scaleImages(imageSize);
+            else
+            {
+                imageSize = windowSize / zoomFactor;
+                imagegrid.scaleImages(imageSize);
+            }
         }
 
         scrolledUp = false;
