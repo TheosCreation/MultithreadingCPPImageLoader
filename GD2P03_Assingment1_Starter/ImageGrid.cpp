@@ -3,7 +3,7 @@
 
 ImageGrid::ImageGrid(int imageSize, int gridSize)
 {
-    m_emptyTexure.loadFromFile("FillTile.png");
+    m_emptyTexure.loadFromFile("LoadingTile.png");
     m_imageSize = imageSize;
     m_gridSize = gridSize;
 
@@ -13,7 +13,7 @@ ImageGrid::ImageGrid(int imageSize, int gridSize)
             int index = i * m_gridSize + j;
             // Set properties for tile
             m_tiles[index].m_image.setTexture(&m_emptyTexure);
-            m_tiles[index].m_image.setPosition(sf::Vector2f(j * m_imageSize, i * m_imageSize)); // Set position
+            m_tiles[index].m_image.setPosition(sf::Vector2f(j * m_imageSize, i * m_imageSize));
             m_tiles[index].m_image.setSize(sf::Vector2f(m_imageSize, m_imageSize));
         }
     }
@@ -29,29 +29,27 @@ void ImageGrid::setTileTexture(sf::Texture* _texture)
     m_currentIndex++;
 }
 
-void ImageGrid::scaleImages(float newScale)
+void ImageGrid::scaleImages(float newScale, int zoomAmount, int page)
 {
+    m_gridSize = zoomAmount;
+    m_imageSize = newScale;
+    int pageOffset = (m_gridSize * m_gridSize) * page;
     for (int i = 0; i < m_gridSize; i++) {
         for (int j = 0; j < m_gridSize; j++) {
-            int index = i * m_gridSize + j;
-            m_tiles[index].m_image.setPosition(sf::Vector2f(j * newScale, i * newScale)); // Set position
-            m_tiles[index].m_image.setSize(sf::Vector2f(newScale, newScale));
+            int index = (i * m_gridSize + j) + pageOffset;
+            m_tiles[index].m_image.setPosition(sf::Vector2f(j * m_imageSize, i * m_imageSize));
+            m_tiles[index].m_image.setSize(sf::Vector2f(m_imageSize, m_imageSize));
         }
     }
 }
 
-void ImageGrid::draw(sf::RenderWindow& window, int zoomAmount)
+void ImageGrid::draw(sf::RenderWindow& window, int page)
 {
-    for (int i = 0; i < zoomAmount; i++) {
-        for (int j = 0; j < zoomAmount; j++) {
-            int index = i * m_gridSize + j;
+    int pageOffset = (m_gridSize * m_gridSize) * page;
+    for (int i = 0; i < m_gridSize; i++) {
+        for (int j = 0; j < m_gridSize; j++) {
+            int index = i * m_gridSize + j + pageOffset;
             window.draw(m_tiles[index].m_image);
         }
-    }
-}
-void ImageGrid::draw(sf::RenderWindow& window)
-{
-    for (const auto& tile : m_tiles) {
-        window.draw(tile.m_image);
     }
 }

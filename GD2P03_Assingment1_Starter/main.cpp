@@ -60,12 +60,10 @@ int main() {
     int imageCount = urls.size();
     int gridSize = std::sqrt(imageCount);
     if (gridSize * gridSize < imageCount) {
-        gridSize++; // Increment gridSize if it's not a perfect square
+        gridSize++;
     }
 
-    int originalImageSize = windowSize / gridSize;
-
-    ImageGrid imagegrid(originalImageSize, gridSize);
+    ImageGrid imagegrid(windowSize / gridSize, gridSize);
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
@@ -104,14 +102,19 @@ int main() {
 
 
     bool controlPressed = false;
+    bool sPressed = false;
     bool scrolledUp = false;
     bool scrolledDown = false;
+    //zooom factor is how many ros/columns are shown on screen
     int originalZoomFactor = 1;
+    int maxZoomFactor = std::sqrt(imageCount);
     int zoomFactor = originalZoomFactor;
 
-    float imageSize = originalImageSize;
-    imageSize = windowSize;
-    imagegrid.scaleImages(imageSize);
+    int pageCount = 0;
+    int maxPages = imageCount / (zoomFactor * zoomFactor);
+
+    float imageSize = windowSize / zoomFactor;
+    imagegrid.scaleImages(imageSize, originalZoomFactor, pageCount);
 
     while (window.isOpen()) {
         sf::Event winEvent;
@@ -121,20 +124,30 @@ int main() {
             case sf::Event::Closed:
                 window.close();
                 break;
+            case sf::Event::MouseButtonPressed:
+                if (winEvent.mouseButton.button == sf::Mouse::Left)
+                    pageCount++;
+                else if (winEvent.mouseButton.button == sf::Mouse::Right)
+                    pageCount--;
+                break;
             case sf::Event::KeyPressed:
                 if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
                     controlPressed = true;
+                if (winEvent.key.code == sf::Keyboard::Key::S)
+                    sPressed = true;
                 break;
             case sf::Event::KeyReleased:
                 if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
                     controlPressed = false;
+                if (winEvent.key.code == sf::Keyboard::Key::S)
+                    sPressed = false;
                 break;
             case sf::Event::MouseWheelScrolled:
                 if (controlPressed && winEvent.mouseWheelScroll.delta > 0)
                     scrolledUp = true;
                 if (controlPressed && winEvent.mouseWheelScroll.delta < 0)
                     scrolledDown = true;
-                break;
+                break; 
             }
         }
         //input
@@ -149,22 +162,38 @@ int main() {
             else
             {
                 imageSize = windowSize / zoomFactor;
-                imagegrid.scaleImages(imageSize);
             }
         }
         if (controlPressed && scrolledDown)
         {
             //zoom out
             zoomFactor++;
-            if (zoomFactor > 5)
+            if (zoomFactor > maxZoomFactor)
             {
-                zoomFactor = 5;
+                zoomFactor = maxZoomFactor;
             }
             else
             {
                 imageSize = windowSize / zoomFactor;
-                imagegrid.scaleImages(imageSize);
             }
+        }
+
+        maxPages = imageCount / (zoomFactor * zoomFactor);
+
+        if (pageCount < 0)
+        {
+            pageCount = 0;
+        }
+        if (pageCount > maxPages-1)
+        {
+            pageCount = maxPages-1;
+        }
+
+        imagegrid.scaleImages(imageSize, zoomFactor, pageCount);
+
+        if (controlPressed && sPressed)
+        {
+            screenshot("screenshot.png", &window);
         }
 
         scrolledUp = false;
@@ -172,7 +201,7 @@ int main() {
 
         window.clear();
 
-        imagegrid.draw(window, zoomFactor);
+        imagegrid.draw(window, pageCount);
 
         window.display();
     }
