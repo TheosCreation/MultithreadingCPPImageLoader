@@ -29,7 +29,7 @@ void ImageGrid::setTileTexture(sf::Texture* _texture)
     m_currentIndex++;
 }
 
-void ImageGrid::scaleImages(float newScale, int zoomAmount, int page)
+void ImageGrid::updateGrid(float newScale, int zoomAmount, int page)
 {
     m_gridSize = zoomAmount;
     m_imageSize = newScale;

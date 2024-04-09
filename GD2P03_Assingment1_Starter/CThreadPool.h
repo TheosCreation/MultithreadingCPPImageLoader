@@ -1,12 +1,10 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
-#include <vector>
 #include <queue>
 #include <condition_variable>
 #include <functional>
-#include <future>
-#include <stdexcept>
+#include <vector>
 
 class CThreadPool {
 public:
@@ -21,6 +19,7 @@ public:
                             this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
                             if (this->stop && this->tasks.empty())
                                 return;
+
                             task = std::move(this->tasks.front());
                             this->tasks.pop();
                         }

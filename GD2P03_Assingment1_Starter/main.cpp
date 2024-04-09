@@ -1,17 +1,17 @@
 #include <iostream>
-#include <vector>
-#include <condition_variable>
 #include <fstream>
+#include <vector>
+#include <future>
+#include <condition_variable>
 #include <SFML/Graphics.hpp>
 #include "ImageGrid.h"
 #include "Downloader.h"
-
-#include <future>
 #include "CThreadPool.h"
+#include <sstream>
 
 std::chrono::steady_clock::time_point startTime;
 
-// Function to split URLs from a string
+// splits URLs from a string
 std::vector<std::string> splitUrls(const std::string& _data) {
     std::vector<std::string> urls;
     size_t pos = 0;
@@ -23,27 +23,82 @@ std::vector<std::string> splitUrls(const std::string& _data) {
     return urls;
 }
 
-// Function to take a screenshot of the current screen and save the to a file location
+// takes a screenshot of the current screen and save the to a file location
 void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     sf::Texture texture;
     texture.create(window->getSize().x, window->getSize().y);
     texture.update(*window);
-    if (texture.copyToImage().saveToFile(fileSaveLocation)) {
-        std::cout << "Screenshot saved to " << fileSaveLocation << std::endl;
+
+    // Generate unique filenames
+    std::string filename;
+    int i = 0;
+    do {
+        std::ostringstream oss;
+        oss << fileSaveLocation << i << ".png";
+        filename = oss.str();
+        ++i;
+    } while (std::ifstream(filename).good());
+
+    // Save the screenshot to a file
+    if (texture.copyToImage().saveToFile(filename)) {
+        std::cout << "Screenshot saved to " << filename << std::endl;
     }
 }
 
 int main() {
-    startTime = std::chrono::steady_clock::now();
 
     int windowSize = 1260;
-    sf::RenderWindow window(sf::VideoMode(windowSize, windowSize), "GD2P03 Assignment 1");
+
+    sf::RenderWindow settingsPage(sf::VideoMode(windowSize, windowSize), "Settings Page");
+
+    std::string listUrl;
+    bool a = false;
+    if (a)
+    {
+        
+    }
+    else
+    {
+        listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt";
+    }
+    while (settingsPage.isOpen()) {
+        sf::Event winEvent;
+        while (settingsPage.pollEvent(winEvent)) {
+            switch (winEvent.type)
+            {
+            case sf::Event::Closed:
+                settingsPage.close();
+                return 0; 
+            case sf::Event::KeyPressed:
+                if (winEvent.key.code == sf::Keyboard::Key::A)
+                {
+                    listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt";
+                    settingsPage.close();
+                }
+                if (winEvent.key.code == sf::Keyboard::Key::S)
+                {
+                    listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt";
+                    settingsPage.close();
+                }
+                break;
+            }
+        }
+
+        settingsPage.clear();
+
+        //render
+
+        settingsPage.display();
+    }
+
+    startTime = std::chrono::steady_clock::now();
+    sf::RenderWindow imagegridWindow(sf::VideoMode(windowSize, windowSize), "Theos Image Viewer");
 
     std::string data;
     CDownloader downloader;
     downloader.Init();
 
-    if (!downloader.Download("https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt", data)) {
+    if (!downloader.Download(listUrl.c_str(), data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
@@ -75,7 +130,7 @@ int main() {
         threadPool.enqueue([&, i]() {
             std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
             if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
-                std::cout << "image download success: " << urls[i] << std::endl;
+                std::cerr << "image download success: " << urls[i] << std::endl;
                 downloadPromises[i].set_value();
             }
             else {
@@ -85,12 +140,12 @@ int main() {
             });
         threadPool.enqueue([&, i]() {
             downloadPromises[i].get_future().wait();
-            if (!imageTextures[i].loadFromFile(filePaths[i])) {
-                std::cout << "Failed to load image: " << filePaths[i] << std::endl;
+            if (imageTextures[i].loadFromFile(filePaths[i])) {
+                std::cerr << "Image Loaded From: " << filePaths[i] << std::endl;
+                imagegrid.setTileTexture(&imageTextures[i]);
             }
             else {
-                std::cout << "Image Loaded From: " << filePaths[i] << std::endl;
-                imagegrid.setTileTexture(&imageTextures[i]);
+                std::cerr << "Failed to load image: " << filePaths[i] << std::endl;
             }
             });
     }
@@ -98,7 +153,7 @@ int main() {
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    std::cout << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
+    std::cerr << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
 
 
     bool controlPressed = false;
@@ -106,23 +161,23 @@ int main() {
     bool scrolledUp = false;
     bool scrolledDown = false;
     //zooom factor is how many ros/columns are shown on screen
-    int originalZoomFactor = 1;
+    int minimumZoomFactor = 1;
     int maxZoomFactor = std::sqrt(imageCount);
-    int zoomFactor = originalZoomFactor;
+    int zoomFactor = 3;
 
     int pageCount = 0;
     int maxPages = imageCount / (zoomFactor * zoomFactor);
 
     float imageSize = windowSize / zoomFactor;
-    imagegrid.scaleImages(imageSize, originalZoomFactor, pageCount);
+    imagegrid.updateGrid(imageSize, zoomFactor, pageCount);
 
-    while (window.isOpen()) {
+    while (imagegridWindow.isOpen()) {
         sf::Event winEvent;
-        while (window.pollEvent(winEvent)) {
+        while (imagegridWindow.pollEvent(winEvent)) {
             switch (winEvent.type)
             {
             case sf::Event::Closed:
-                window.close();
+                imagegridWindow.close();
                 break;
             case sf::Event::MouseButtonPressed:
                 if (winEvent.mouseButton.button == sf::Mouse::Left)
@@ -131,40 +186,33 @@ int main() {
                     pageCount--;
                 break;
             case sf::Event::KeyPressed:
-                if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
-                    controlPressed = true;
                 if (winEvent.key.code == sf::Keyboard::Key::S)
                     sPressed = true;
                 break;
             case sf::Event::KeyReleased:
-                if (winEvent.key.code == sf::Keyboard::Key::LControl || winEvent.key.code == sf::Keyboard::Key::RControl)
-                    controlPressed = false;
                 if (winEvent.key.code == sf::Keyboard::Key::S)
                     sPressed = false;
                 break;
             case sf::Event::MouseWheelScrolled:
-                if (controlPressed && winEvent.mouseWheelScroll.delta > 0)
+                if (winEvent.mouseWheelScroll.delta > 0)
                     scrolledUp = true;
-                if (controlPressed && winEvent.mouseWheelScroll.delta < 0)
+                if (winEvent.mouseWheelScroll.delta < 0)
                     scrolledDown = true;
                 break; 
             }
         }
         //input
-        if (controlPressed && scrolledUp)
+        if (scrolledUp)
         {
             //zoom in
             zoomFactor--;
-            if (zoomFactor < originalZoomFactor)
+            if (zoomFactor < minimumZoomFactor)
             {
-                zoomFactor = originalZoomFactor;
+                zoomFactor = minimumZoomFactor;
             }
-            else
-            {
-                imageSize = windowSize / zoomFactor;
-            }
+            imageSize = windowSize / zoomFactor;
         }
-        if (controlPressed && scrolledDown)
+        if (scrolledDown)
         {
             //zoom out
             zoomFactor++;
@@ -172,10 +220,7 @@ int main() {
             {
                 zoomFactor = maxZoomFactor;
             }
-            else
-            {
-                imageSize = windowSize / zoomFactor;
-            }
+            imageSize = windowSize / zoomFactor;
         }
 
         maxPages = imageCount / (zoomFactor * zoomFactor);
@@ -189,21 +234,21 @@ int main() {
             pageCount = maxPages-1;
         }
 
-        imagegrid.scaleImages(imageSize, zoomFactor, pageCount);
+        imagegrid.updateGrid(imageSize, zoomFactor, pageCount);
 
-        if (controlPressed && sPressed)
+        if (sPressed)
         {
-            screenshot("screenshot.png", &window);
+            screenshot("Screenshots/screenshot", &imagegridWindow);
         }
 
         scrolledUp = false;
         scrolledDown = false;
 
-        window.clear();
+        imagegridWindow.clear();
 
-        imagegrid.draw(window, pageCount);
+        imagegrid.draw(imagegridWindow, pageCount);
 
-        window.display();
+        imagegridWindow.display();
     }
 
     return 0;

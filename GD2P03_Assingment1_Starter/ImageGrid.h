@@ -9,7 +9,7 @@ public:
 	ImageGrid(int imageSize, int gridSize);
 	~ImageGrid();
 	void setTileTexture(sf::Texture* _texture);
-	void scaleImages(float newScale, int zoomAmount, int page);
+	void updateGrid(float newScale, int zoomAmount, int page);
 	void draw(sf::RenderWindow& window, int page);
 private:
 	std::vector<ImageTile> m_tiles;
