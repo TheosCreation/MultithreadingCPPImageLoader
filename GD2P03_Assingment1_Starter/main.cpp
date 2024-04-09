@@ -8,6 +8,8 @@
 #include "Downloader.h"
 #include "CThreadPool.h"
 #include <sstream>
+#include "Button.h"
+#include "Text.h"
 
 std::chrono::steady_clock::time_point startTime;
 
@@ -51,42 +53,38 @@ int main() {
 
     sf::RenderWindow settingsPage(sf::VideoMode(windowSize, windowSize), "Settings Page");
 
+    Text title("VCR_OSD_MONO_1.001.ttf", 100, sf::Color::White, "Settings", 250, 50);
+    Text listToLoad("VCR_OSD_MONO_1.001.ttf", 50, sf::Color::White, "List To Load", 250, 200);
+
     std::string listUrl;
-    bool a = false;
-    if (a)
-    {
-        
-    }
-    else
-    {
+    Button smallListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 150, 300, 200, 50, "Small", [&listUrl, &settingsPage]() {
+        listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt";
+        settingsPage.close();
+        });
+    Button largeListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 500, 300, 200, 50, "Large", [&listUrl, &settingsPage]() {
         listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt";
-    }
+        settingsPage.close();
+        });
+
     while (settingsPage.isOpen()) {
         sf::Event winEvent;
         while (settingsPage.pollEvent(winEvent)) {
+            smallListButton.handleEvent(winEvent);
+            largeListButton.handleEvent(winEvent);
             switch (winEvent.type)
             {
             case sf::Event::Closed:
                 settingsPage.close();
-                return 0; 
-            case sf::Event::KeyPressed:
-                if (winEvent.key.code == sf::Keyboard::Key::A)
-                {
-                    listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt";
-                    settingsPage.close();
-                }
-                if (winEvent.key.code == sf::Keyboard::Key::S)
-                {
-                    listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt";
-                    settingsPage.close();
-                }
-                break;
+                return 0;
             }
         }
 
         settingsPage.clear();
 
-        //render
+        smallListButton.draw(settingsPage);
+        largeListButton.draw(settingsPage);
+        title.draw(settingsPage);
+        listToLoad.draw(settingsPage);
 
         settingsPage.display();
     }
@@ -122,38 +120,46 @@ int main() {
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
-
     CThreadPool threadPool(std::thread::hardware_concurrency());
+    //promise to wait till images are downloaded before loaded
     std::vector<std::promise<void>> downloadPromises(imageCount);
     for (int i = 0; i < imageCount; i++) {
         downloadPromises[i] = std::promise<void>();
+        //downloading images tasks assigned to the threadpool
         threadPool.enqueue([&, i]() {
-            std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
-            if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
-                std::cerr << "image download success: " << urls[i] << std::endl;
-                downloadPromises[i].set_value();
-            }
-            else {
-                std::cerr << "Failed to download image: " << urls[i] << std::endl;
-                downloadPromises[i].set_value();
-            }
+                std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
+                std::ifstream fileStream(filePath);
+                if (fileStream.good()) {
+                    std::cout << "Download skipped, image already exitst in files: " << urls[i] << "\n";
+                    downloadPromises[i].set_value();
+                }
+                else if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
+                    std::cout << "Image download success: " << urls[i] << "\n";
+                    downloadPromises[i].set_value();
+                }
+                else {
+                    std::cout << "Failed to download image: " << urls[i] << "\n";
+                    downloadPromises[i].set_value();
+                }
+                fileStream.close();
             });
+        //loading images tasks assigned to the threadpool
         threadPool.enqueue([&, i]() {
-            downloadPromises[i].get_future().wait();
-            if (imageTextures[i].loadFromFile(filePaths[i])) {
-                std::cerr << "Image Loaded From: " << filePaths[i] << std::endl;
-                imagegrid.setTileTexture(&imageTextures[i]);
-            }
-            else {
-                std::cerr << "Failed to load image: " << filePaths[i] << std::endl;
-            }
+                downloadPromises[i].get_future().wait();
+                if (imageTextures[i].loadFromFile(filePaths[i])) {
+                    std::cout << "Image Loaded From: " << filePaths[i] << "\n";
+                    imagegrid.setTileTexture(&imageTextures[i]);
+                }
+                else {
+                    std::cout << "Failed to load image: " << filePaths[i] << "\n";
+                }
             });
     }
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    std::cerr << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
+    std::cout << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
 
 
     bool controlPressed = false;

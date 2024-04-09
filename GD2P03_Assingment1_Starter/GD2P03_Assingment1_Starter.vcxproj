@@ -155,16 +155,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Button.cpp" />
     <ClCompile Include="Downloader.cpp" />
     <ClCompile Include="ImageGrid.cpp" />
     <ClCompile Include="ImageTile.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Text.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Button.h" />
     <ClInclude Include="CThreadPool.h" />
     <ClInclude Include="Downloader.h" />
     <ClInclude Include="ImageGrid.h" />
     <ClInclude Include="ImageTile.h" />
+    <ClInclude Include="Text.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
