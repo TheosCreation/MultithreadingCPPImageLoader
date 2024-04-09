@@ -1,3 +1,15 @@
+/***
+Bachelor of Software Engineering
+Media Design School
+Auckland
+New Zealand
+(c) 2023 Media Design School
+File Name : Text.h
+Description : creates text useful for ui
+Author : Theo Morris
+Mail : theo.morris@mds.ac.nz
+**/
+
 #pragma once
 
 #include <SFML/Graphics.hpp>

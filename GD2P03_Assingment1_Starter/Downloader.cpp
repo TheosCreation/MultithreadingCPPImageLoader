@@ -20,6 +20,7 @@ void CDownloader::Init()
 	
 }
 
+// downloads from the url and saves it in memory
 bool CDownloader::Download(const char* _url, std::string& _outputStr)
 {
 	CURL* m_curl = curl_easy_init();
@@ -42,6 +43,7 @@ bool CDownloader::Download(const char* _url, std::string& _outputStr)
 	return false;
 }
 
+// downloads from the url and saves it to a file location
 bool CDownloader::DownloadToFile(const char* _url, const char* _outputFile)
 {
 	CURL* m_curl = curl_easy_init();

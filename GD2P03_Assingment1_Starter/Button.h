@@ -1,3 +1,15 @@
+/***
+Bachelor of Software Engineering
+Media Design School
+Auckland
+New Zealand
+(c) 2023 Media Design School
+File Name : Button.h
+Description : creates a sfml button with a function
+Author : Theo Morris
+Mail : theo.morris@mds.ac.nz
+**/
+
 #pragma once
 
 #include <SFML/Graphics.hpp>

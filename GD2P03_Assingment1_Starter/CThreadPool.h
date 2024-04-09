@@ -1,3 +1,15 @@
+/***
+Bachelor of Software Engineering
+Media Design School
+Auckland
+New Zealand
+(c) 2023 Media Design School
+File Name : CThreadPool.h
+Description : creates a thread pool that has workers work on tasks that are assigned
+Author : Theo Morris
+Mail : theo.morris@mds.ac.nz
+**/
+
 #include <iostream>
 #include <thread>
 #include <mutex>

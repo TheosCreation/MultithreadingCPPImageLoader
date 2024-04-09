@@ -7,11 +7,8 @@
 #include "ImageGrid.h"
 #include "Downloader.h"
 #include "CThreadPool.h"
-#include <sstream>
 #include "Button.h"
 #include "Text.h"
-
-std::chrono::steady_clock::time_point startTime;
 
 // splits URLs from a string
 std::vector<std::string> splitUrls(const std::string& _data) {
@@ -25,7 +22,27 @@ std::vector<std::string> splitUrls(const std::string& _data) {
     return urls;
 }
 
-// takes a screenshot of the current screen and save the to a file location
+// verify an image from files much faster than loading a sf::texture in memory and checking it
+bool verifyImage(const std::string& filePath) {
+    // open the file
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file) {
+        return false; // failed because most likely not exists
+    }
+
+    // reads the first few bytes to check to see if its a png or jpg
+    const int HEADER_SIZE = 8;
+    char header[HEADER_SIZE];
+    file.read(header, HEADER_SIZE);
+
+    if (file.gcount() < HEADER_SIZE) {
+        return false; // file is too small or not an image format we recognize
+    }
+
+    return true; // file is likely a valid image so load it
+}
+
+// takes a screenshot of the current screen and save the to a file location alittle slow
 void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     sf::Texture texture;
     texture.create(window->getSize().x, window->getSize().y);
@@ -35,9 +52,7 @@ void screenshot(const std::string& fileSaveLocation, sf::Window* window) {
     std::string filename;
     int i = 0;
     do {
-        std::ostringstream oss;
-        oss << fileSaveLocation << i << ".png";
-        filename = oss.str();
+        filename = fileSaveLocation + std::to_string(i) + ".png";
         ++i;
     } while (std::ifstream(filename).good());
 
@@ -51,17 +66,21 @@ int main() {
 
     int windowSize = 1260;
 
-    sf::RenderWindow settingsPage(sf::VideoMode(windowSize, windowSize), "Settings Page");
+    // creates a welcomepage and adds two buttons and title and subheading
+    sf::RenderWindow settingsPage(sf::VideoMode(windowSize, windowSize), "Welcome");
 
-    Text title("VCR_OSD_MONO_1.001.ttf", 100, sf::Color::White, "Settings", 250, 50);
-    Text listToLoad("VCR_OSD_MONO_1.001.ttf", 50, sf::Color::White, "List To Load", 250, 200);
+    Text title("VCR_OSD_MONO_1.001.ttf", 60, sf::Color::White, "Welcome to the Image Viewer", 200, 50);
+    Text listToLoad("VCR_OSD_MONO_1.001.ttf", 50, sf::Color::White, "Image List To Load", 400, 200);
 
     std::string listUrl;
-    Button smallListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 150, 300, 200, 50, "Small", [&listUrl, &settingsPage]() {
+    // will close the welcome window and set the list to load to the small list
+    Button smallListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 300, 300, 200, 50, "Small List", [&listUrl, &settingsPage]() {
         listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListSmall.txt";
         settingsPage.close();
         });
-    Button largeListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 500, 300, 200, 50, "Large", [&listUrl, &settingsPage]() {
+
+    // will close the welcome window and set the list to load to the large list
+    Button largeListButton("VCR_OSD_MONO_1.001.ttf", sf::Color::Red, 700, 300, 200, 50, "Large List", [&listUrl, &settingsPage]() {
         listUrl = "https://raw.githubusercontent.com/MDS-HugoA/TechLev/main/ImgListLarge.txt";
         settingsPage.close();
         });
@@ -89,51 +108,56 @@ int main() {
         settingsPage.display();
     }
 
-    startTime = std::chrono::steady_clock::now();
     sf::RenderWindow imagegridWindow(sf::VideoMode(windowSize, windowSize), "Theos Image Viewer");
 
     std::string data;
     CDownloader downloader;
     downloader.Init();
-
+    // downloads all the urls from the selected list on the data string
     if (!downloader.Download(listUrl.c_str(), data)) {
         std::cerr << "Data failed to download";
         return -1;
     }
 
-    // urls from the data downloaded and split
+    // urls are split from the data and saved in a vector
     std::vector<std::string> urls = splitUrls(data);
-    // filepaths from the urls and split
+
+    // filepaths are split from the urls and saved in a vector
     std::vector<std::string> filePaths;
     for (const auto& url : urls) {
         std::string filePath = "Images/" + url.substr(url.find_last_of('/') + 1);
         filePaths.push_back(filePath);
     }
-    // number of images to download and load onto the grid
+
+    // calculates the count images from the list of urls
     int imageCount = urls.size();
+
+    // grid size is the number of columns or rows there are on the image grid
     int gridSize = std::sqrt(imageCount);
     if (gridSize * gridSize < imageCount) {
         gridSize++;
     }
-
+    // will generate a empty image grid based on the number of images from the url list
     ImageGrid imagegrid(windowSize / gridSize, gridSize);
+
+    // these are the textures of the images on the image grid
     std::vector<sf::Texture> imageTextures;
     imageTextures.resize(imageCount);
 
+    // creates a thread pool to be used for downloading/verifying and loading images onto the image grid
     CThreadPool threadPool(std::thread::hardware_concurrency());
-    //promise to wait till images are downloaded before loaded
+
+    // promise to wait till images are downloaded before loaded
     std::vector<std::promise<void>> downloadPromises(imageCount);
     for (int i = 0; i < imageCount; i++) {
         downloadPromises[i] = std::promise<void>();
-        //downloading images tasks assigned to the threadpool
+        // downloading images tasks assigned to the threadpool
         threadPool.enqueue([&, i]() {
-                std::string filePath = "Images/" + urls[i].substr(urls[i].find_last_of('/') + 1);
-                std::ifstream fileStream(filePath);
-                if (fileStream.good()) {
-                    std::cout << "Download skipped, image already exitst in files: " << urls[i] << "\n";
+                if (verifyImage(filePaths[i])) {
+                    std::cout << "Download skipped, image already exists in files: " << urls[i] << "\n";
                     downloadPromises[i].set_value();
                 }
-                else if (downloader.DownloadToFile(urls[i].c_str(), filePath.c_str())) {
+                else if (downloader.DownloadToFile(urls[i].c_str(), filePaths[i].c_str())) {
                     std::cout << "Image download success: " << urls[i] << "\n";
                     downloadPromises[i].set_value();
                 }
@@ -141,32 +165,24 @@ int main() {
                     std::cout << "Failed to download image: " << urls[i] << "\n";
                     downloadPromises[i].set_value();
                 }
-                fileStream.close();
             });
-        //loading images tasks assigned to the threadpool
+        // loading images tasks assigned to the threadpool
         threadPool.enqueue([&, i]() {
                 downloadPromises[i].get_future().wait();
                 if (imageTextures[i].loadFromFile(filePaths[i])) {
                     std::cout << "Image Loaded From: " << filePaths[i] << "\n";
                     imagegrid.setTileTexture(&imageTextures[i]);
                 }
-                else {
-                    std::cout << "Failed to load image: " << filePaths[i] << "\n";
-                }
             });
     }
 
-    auto endTime = std::chrono::steady_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-
-    std::cout << "Total Time taken to launch program: " << elapsedTime << " milliseconds" << std::endl;
-
-
+    // input control checks
     bool controlPressed = false;
     bool sPressed = false;
     bool scrolledUp = false;
     bool scrolledDown = false;
-    //zooom factor is how many ros/columns are shown on screen
+
+    // zoom factor is how many ros/columns are shown on screen
     int minimumZoomFactor = 1;
     int maxZoomFactor = std::sqrt(imageCount);
     int zoomFactor = 3;
@@ -207,30 +223,32 @@ int main() {
                 break; 
             }
         }
-        //input
+
+        // zooms in and determines the number of pages allowed
         if (scrolledUp)
         {
-            //zoom in
             zoomFactor--;
             if (zoomFactor < minimumZoomFactor)
             {
                 zoomFactor = minimumZoomFactor;
             }
             imageSize = windowSize / zoomFactor;
+            maxPages = imageCount / (zoomFactor * zoomFactor);
         }
+
+        // zooms out and determines the number of pages allowed
         if (scrolledDown)
         {
-            //zoom out
             zoomFactor++;
             if (zoomFactor > maxZoomFactor)
             {
                 zoomFactor = maxZoomFactor;
             }
             imageSize = windowSize / zoomFactor;
+            maxPages = imageCount / (zoomFactor * zoomFactor);
         }
 
-        maxPages = imageCount / (zoomFactor * zoomFactor);
-
+        // ensure the user cannot go past the max and minimum page
         if (pageCount < 0)
         {
             pageCount = 0;
@@ -240,6 +258,7 @@ int main() {
             pageCount = maxPages-1;
         }
 
+        // resizes and positions the images based on page, zoom and image size
         imagegrid.updateGrid(imageSize, zoomFactor, pageCount);
 
         if (sPressed)
@@ -247,11 +266,13 @@ int main() {
             screenshot("Screenshots/screenshot", &imagegridWindow);
         }
 
+        // clears input so there is no looping
         scrolledUp = false;
         scrolledDown = false;
 
         imagegridWindow.clear();
 
+        // renders the grid
         imagegrid.draw(imagegridWindow, pageCount);
 
         imagegridWindow.display();
